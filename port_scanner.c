@@ -277,7 +277,9 @@ int main(int argc, char *argv[]) {
     pthread_join(threads[i], NULL);
   }
 
-  // Clean Up
+  // Clean Up This is where I begin to understand how Golang was created
+  // The amount that Golang facilitates in memory forgivenness and safety
+  // In C you walk a fine line of keeping track of every single bit. UGH!
   for (int i = 0; i < options.target_count; i++) {
     free(ips[i]);
   }
