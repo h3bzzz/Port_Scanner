@@ -1,3 +1,7 @@
+// PORT SCANNER IS THE FIRST CODE I TRY TO LEARN ANY NEW LANGUAGE 
+// IT FORCES YOU TO DEAL WITH STRING AND NETWORK PACKAGES OF THE LANGUAGE 
+// THIS IS ME UNDERSTANDING C 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -12,7 +16,13 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <ctype.h>
-  
+
+// USAGE : -t  = Allocates the Target
+//         -p  = Allocates memory for the Port Range
+//        -common = Specifying the port for common or all will scan most 
+//                  common ports, all will scan... ALL 65535 ports
+//   Cool thing about this being written in C just above assembly is this things spped.
+//   Give it a try, and I welcome any C Dev Gods to please share how this simple C script can be improved.
 
 
 
