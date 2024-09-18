@@ -59,7 +59,17 @@ Functions:
   select() - Monitors multiple file descriptors, good for handling non-blocking connections which is what we want               for port scanning
 
 
-  Please let me know if I missed anything or something doesnt make sense, I am self taught programmer just trying to learn and build safe code.
+  This was a very educational process I put myself through. Getting to know the GNU Compiler Collection (GCC)
+  I was pleased at how intuitive and verbose the debugging was. I am sure its come a long way since its previous
+  predecessors. 
+  Using GDB (GNU Debugger) was very powerful little tool to get to know that I am sure will come in handy in     
+  future malware analysis, but I'm Ghidra will do the job. This tool allowed me to see that even though my code
+  compiled successfully it still had memory allocation errors in which memory was being leaked at certain 
+  functions, and the amount of times I forgot to deallocate memory was more than I'd like to admit.  
+  
+
+
+  Please let me know if I missed anything or something doesnt make sense, I am just self taught programmer just trying to learn and build safe code.
   
 
 
