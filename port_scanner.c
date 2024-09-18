@@ -1,32 +1,19 @@
-// PORT SCANNER IS THE FIRST CODE I TRY TO LEARN ANY NEW LANGUAGE 
-// IT FORCES YOU TO DEAL WITH STRING AND NETWORK PACKAGES OF THE LANGUAGE 
-// THIS IS ME UNDERSTANDING C 
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 #include <getopt.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-#include <stdbool.h>
 #include <sys/socket.h>
+#include <stdbool.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/time.h>
 #include <pthread.h>
 #include <ctype.h>
 
-// USAGE : -t  = Allocates the Target
-//         -p  = Allocates memory for the Port Range
-//        -common = Specifying the port for common or all will scan most 
-//                  common ports, all will scan... ALL 65535 ports
-//   Cool thing about this being written in C just above assembly is this things spped.
-//   Give it a try, and I welcome any C Dev Gods to please share how this simple C script can be improved.
-
-
-
-// Options
+// Options 
 typedef struct {
   char **targets;
   int target_count;
@@ -44,15 +31,15 @@ Options parse_args(int argc, char *argv[]) {
 
   int opt;
   while ((opt = getopt(argc, argv, "t:p:")) != -1) {
-    switch(opt) {
+    switch (opt) {
       case 't':
-        options.targets = malloc(sizeof(char *) * (options.target_count + 1));
-        options.targets[options.target_count] = optarg;
+        options.targets = realloc(options.targets, sizeof(char *) * (options.target_count + 1));
+        options.targets[options.target_count] = strdup(optarg);
         options.target_count++;
         break;
       case 'p':
-        options.ports = malloc(sizeof(char *) * (options.port_count + 1));
-        options.ports[options.port_count] = optarg;
+        options.ports = realloc(options.ports, sizeof(char *) * (options.port_count + 1));
+        options.ports[options.port_count] = strdup(optarg);
         options.port_count++;
         break;
       default:
@@ -63,9 +50,8 @@ Options parse_args(int argc, char *argv[]) {
   return options;
 }
 
-
-// RESOLVE single target
-char* resolve_target(const char *target) {
+// Resolve Targets
+char* resolve_targets(const char *target) {
   struct addrinfo hints, *res;
   int errcode;
   char *ipstr = malloc(sizeof(char) * INET6_ADDRSTRLEN);
@@ -81,107 +67,107 @@ char* resolve_target(const char *target) {
   }
 
   void *addr;
-  if (res -> ai_family == AF_INET) {
-    struct sockaddr_in *ipv4 = (struct sockaddr_in *)res -> ai_addr;
-    addr = &(ipv4 -> sin_addr);
+  if (res->ai_family == AF_INET) {
+    struct sockaddr_in *ipv4 = (struct sockaddr_in *)res->ai_addr;
+    addr = &(ipv4->sin_addr);
   } else {
-    struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)res -> ai_addr;
-    addr = &(ipv6 -> sin6_addr);
+    struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *) res->ai_addr;
+    addr = &(ipv6->sin6_addr);
   }
 
-  inet_ntop(res -> ai_family, addr, ipstr, INET6_ADDRSTRLEN);
+  inet_ntop(res->ai_family, addr, ipstr, INET6_ADDRSTRLEN);
   freeaddrinfo(res);
   return ipstr;
 }
-
 
 typedef struct {
   int *ports;
   int count;
 } PortList;
 
-// PARSE Port Input
+// Parse Port Input
 PortList parse_ports(const char *port_input) {
-    PortList plist;
-    plist.ports = NULL;
-    plist.count = 0;
+  PortList plist;
+  plist.ports = NULL;
+  plist.count = 0;
 
-    // Make a copy of port input
-    char *input_copy = strdup(port_input);
-    if (input_copy == NULL) {
-        perror("Failed to allocate memory for port input copy");
-        exit(EXIT_FAILURE);
-    }
+  char *input_copy = strdup(port_input);
+  if (input_copy == NULL) {
+    perror("Failed to allocate memory for port input");
+    exit(EXIT_FAILURE);
+  }
 
-    char *token = strtok(input_copy, ",");
-    while (token != NULL) {
-        // Trim whitespace
-        while (isspace((unsigned char)*token)) token++;
+  char *token = strtok(input_copy, ",");
+  while (token != NULL) {
+    while (isspace((unsigned char) *token)) token++;
 
-        // Handle Keywords like common and all
-        if (strcmp(token, "common") == 0) {
-            int common_ports[] = {20, 21, 22, 23, 25, 53, 67, 68, 69, 80, 110, 123,
+    if (strcmp(token, "common") == 0) {
+      int common_ports[] =  {20, 21, 22, 23, 25, 53, 67, 68, 69, 80, 110, 123,
                                   135, 137, 138, 139, 143, 161, 162, 179, 194, 389,
                                   443, 445, 465, 514, 515, 587, 993, 995, 1433, 1434,
                                   1521, 1723, 2049, 2083, 2087, 3128, 3306, 3389, 5432,
                                   5900, 5985, 5986, 6379, 8080, 8443, 8888, 9090, 9200,
                                   10000, 27017};
-            int num_common_ports = sizeof(common_ports) / sizeof(common_ports[0]);
-            for (int i = 0; i < num_common_ports; i++) {
-                plist.ports = realloc(plist.ports, sizeof(int) * (plist.count + 1));
-                if (plist.ports == NULL) {
-                    perror("Failed to allocate memory for port list");
-                    free(input_copy);
-                    exit(EXIT_FAILURE);
-                }
-                plist.ports[plist.count++] = common_ports[i];
-            }
-        } else if (strcmp(token, "all") == 0) {
-            for (int i = 1; i <= 65535; i++) {
-                plist.ports = realloc(plist.ports, sizeof(int) * (plist.count + 1));
-                if (plist.ports == NULL) {
-                    perror("Failed to allocate memory for port list");
-                    free(input_copy);
-                    exit(EXIT_FAILURE);
-                }
-                plist.ports[plist.count++] = i;
-            }
-        } else {
-            // Handle Ranges
-            char *dash = strchr(token, '-');
-            if (dash != NULL) {
-                *dash = '\0';  // Split the string at the dash
-                int start = atoi(token);
-                int end = atoi(dash + 1);
-                for (int i = start; i <= end; i++) {
-                    plist.ports = realloc(plist.ports, sizeof(int) * (plist.count + 1));
-                    if (plist.ports == NULL) {
-                        perror("Failed to allocate memory for port list");
-                        free(input_copy);
-                        exit(EXIT_FAILURE);
-                    }
-                    plist.ports[plist.count++] = i;
-                }
-            } else {
-                // Single port
-                int port = atoi(token);
-                plist.ports = realloc(plist.ports, sizeof(int) * (plist.count + 1));
-                if (plist.ports == NULL) {
-                    perror("Failed to allocate memory for port list");
-                    free(input_copy);
-                    exit(EXIT_FAILURE);
-                }
-                plist.ports[plist.count++] = port;
-            }
+      int num_common_ports = sizeof(common_ports) / sizeof(common_ports[0]);
+      for (int i = 0; i < num_common_ports; i++) {
+        plist.ports = realloc(plist.ports, sizeof(int) * (plist.count + 1));
+        if (plist.ports == NULL) {
+          perror("failed to allocate memory for port list.");
+          free(input_copy);
+          exit(EXIT_FAILURE);
         }
-        token = strtok(NULL, ",");
+        plist.ports[plist.count++] = common_ports[i];
+      }
+    } else if (strcmp(token, "all") == 0) {
+      for (int i = 1; i <= 65535; i++) {
+        plist.ports = realloc(plist.ports, sizeof(int) * (plist.count + 1));
+        if (plist.ports == NULL) {
+          perror("failed to allocate memory for port list.");
+          free(input_copy);
+          exit(EXIT_FAILURE);
+        }
+        plist.ports[plist.count++] = i;
+      }
+    } else {
+      char *dash = strchr(token, '-');
+      if (dash != NULL) {
+        *dash = '\0';
+        int start = atoi(token);
+        int end = atoi(dash + 1);
+        if (start > end) {
+          fprintf(stderr, "Invalid port range: %s\n", token);
+          free(input_copy);
+          exit(EXIT_FAILURE);
+        }
+        for (int i = start; i <= end; i++) {
+          plist.ports = realloc(plist.ports, sizeof(int) * (plist.count + 1));
+          if (plist.ports == NULL) {
+            perror("failed to allocate memory for port list.");
+            free(input_copy);
+            exit(EXIT_FAILURE);
+          }
+          plist.ports[plist.count++] = i;
+        }
+      } else {
+        int port = atoi(token);
+        plist.ports = realloc(plist.ports, sizeof(int) * (plist.count + 1));
+        if (plist.ports == NULL) {
+          perror("failed to allocate memory for port list.");
+          free(input_copy);
+          exit(EXIT_FAILURE);
+        }
+        plist.ports[plist.count++] = port;
+      }
     }
 
-    free(input_copy);
-    return plist;
+    token = strtok(NULL, ",");
+  }
+
+  free(input_copy);
+  return plist;
 }
 
-// SCAN PORTS
+// Scan Ports
 bool scan_port(const char *ip, int port, int timeout_ms) {
   int sockfd;
   struct sockaddr_in addr;
@@ -189,11 +175,10 @@ bool scan_port(const char *ip, int port, int timeout_ms) {
 
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (sockfd < 0) {
-    perror("socket creation failed");
+    perror("socket() failed");
     return false;
   }
 
-  // Set Socket to non-blocking
   fcntl(sockfd, F_SETFL, O_NONBLOCK);
 
   memset(&addr, 0, sizeof(addr));
@@ -204,22 +189,21 @@ bool scan_port(const char *ip, int port, int timeout_ms) {
   int res = connect(sockfd, (struct sockaddr *)&addr, sizeof(addr));
   if (res < 0) {
     if (errno == EINPROGRESS) {
-      fd_set wait_set;
-      struct timeval timeout;
+      struct timeval tv;
+      fd_set fdset;
 
-      FD_ZERO(&wait_set);
-      FD_SET(sockfd, &wait_set);
+      tv.tv_sec = 0;
+      tv.tv_usec = timeout_ms * 1000;
 
-      timeout.tv_sec = timeout_ms / 1000;
-      timeout.tv_usec = (timeout_ms % 1000) * 1000;
+      FD_ZERO(&fdset);
+      FD_SET(sockfd, &fdset);
 
-      res = select(sockfd + 1, NULL, &wait_set, NULL, &timeout);
-      if (res > 0 && FD_ISSET(sockfd, &wait_set)) {
+      if (select(sockfd + 1, NULL, &fdset, NULL, &tv) > 0) {
         int so_error;
         socklen_t len = sizeof(so_error);
         getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &so_error, &len);
         if (so_error == 0) {
-          is_open = true; 
+          is_open = true;
         }
       }
     }
@@ -236,15 +220,14 @@ typedef struct {
   int port;
 } ScanArgs;
 
-
-// THREADING
-void * thread_scan(void *arg) {
-  ScanArgs *sarg = (ScanArgs *)arg;
-  bool is_open = scan_port(sarg -> ip, sarg -> port, 1000);
+// Thread Scan
+void *thread_scan(void *arg) {
+  ScanArgs *args = (ScanArgs *)arg;
+  bool is_open = scan_port(args->ip, args->port, 1000);
   if (is_open) {
-    printf("%s:%d is open\n", sarg -> ip, sarg -> port);
+    printf("%s:%d is open\n", args->ip, args->port);
   }
-  free(sarg);
+  free(args);
   return NULL;
 }
 
@@ -252,29 +235,33 @@ void * thread_scan(void *arg) {
 int main(int argc, char *argv[]) {
   Options options = parse_args(argc, argv);
 
-  // Resolve all targets
+  if (options.port_count == 0 || options.target_count == 0) {
+    fprintf(stderr, "Usage: %s -t <target> -p <port>\n", argv[0]);
+    exit(EXIT_FAILURE);
+  }
+
+  // Resolve
   char **ips = malloc(sizeof(char *) * options.target_count);
-  for (int i=0; i < options.target_count; i++) {
-    ips[i] = resolve_target(options.targets[i]);
+  for (int i = 0; i < options.target_count; i++) {
+    ips[i] = resolve_targets(options.targets[i]);
     if (ips[i] == NULL) {
-      fprintf(stderr, "Failed to resolve %s\n", options.targets[i]);
+      fprintf(stderr, "Failed to resolve target: %s\n", options.targets[i]);
       exit(EXIT_FAILURE);
     }
   }
 
   PortList plist = parse_ports(options.ports[0]);
 
-  // Create Thread Pool
   pthread_t threads[MAX_THREADS];
   int thread_count = 0;
 
   for (int i = 0; i < options.target_count; i++) {
     for (int j = 0; j < plist.count; j++) {
-      ScanArgs *sarg = malloc(sizeof(ScanArgs));
-      sarg -> ip = ips[i];
-      sarg -> port = plist.ports[j];
+      ScanArgs *args = malloc(sizeof(ScanArgs));
+      args->ip = ips[i];
+      args->port = plist.ports[j];
 
-      pthread_create(&threads[thread_count], NULL, thread_scan, sarg);
+      pthread_create(&threads[thread_count], NULL, thread_scan, args);
       thread_count++;
 
       if (thread_count == MAX_THREADS) {
@@ -290,16 +277,14 @@ int main(int argc, char *argv[]) {
     pthread_join(threads[i], NULL);
   }
 
-  // Cleanup
+  // Clean Up
   for (int i = 0; i < options.target_count; i++) {
     free(ips[i]);
   }
   free(ips);
   free(plist.ports);
-  free(options.targets);
   free(options.ports);
+  free(options.targets);
 
   return 0;
 }
-
-
