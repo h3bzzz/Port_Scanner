@@ -138,3 +138,8 @@ func main() {
 	wg.Wait()
 }
 
+
+// Huge thanks to 
+https://medium.com/@KentGruber/building-a-high-performance-port-scanner-with-golang-9976181ec39d
+This article helped so much in putting some of the basic pieces together. The rest I got off
+the amazing resources Golang.org/x/... has 
